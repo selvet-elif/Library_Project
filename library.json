@@ -1,0 +1,25 @@
+[
+    {
+        "type": "EBook",
+        "title": "1984",
+        "author": "George Orwell",
+        "isbn": "9780451524935",
+        "is_borrowed": false,
+        "file_format": "EPUB"
+    },
+    {
+        "type": "AudioBook",
+        "title": "Becoming",
+        "author": "Michelle Obama",
+        "isbn": "9781524763138",
+        "is_borrowed": false,
+        "duration": 780
+    },
+    {
+        "type": "Book",
+        "title": "The Lord of the Rings",
+        "author": "J.R.R. Tolkien",
+        "isbn": "9780618640157",
+        "is_borrowed": false
+    }
+]
