@@ -100,7 +100,7 @@ class Library:
     """Finds a book by its title or its ISBN number."""
     def find_book(self, title: str = None, isbn: str = None) -> Book | None:
         for book in self._books:
-            if book.title.lower() == title.lower() or book.isbn == isbn :
+            if (book and book.title.lower() == title.lower()) or (isbn and book.isbn == isbn) :
                 return book
         return None
     
