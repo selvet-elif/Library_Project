@@ -4,14 +4,13 @@ from pydantic import BaseModel, Field, ValidationError
 import json
 import os
 
-
+@dataclass
 class Book:
     """Single book in the library"""
-    def __init__(self, title: str, author: str, isbn: str):
-        self.title = title
-        self.author = author
-        self.isbn = isbn
-        self.is_borrowed = False
+    title: str
+    author: str
+    isbn: str
+    is_borrowed: bool = False
 
     """ Returns a readable string of the book."""
     def __str__(self):
