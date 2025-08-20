@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, ValidationError
 import json
 import os
+from api import get_book_by_isbn
 
 @dataclass
 class Book:
@@ -84,15 +85,48 @@ class Library:
         self._books = []
         self.json_path = json_path
         self.load_from_json(self.json_path)
+    
     """Adds a new book. If the book existed it doesn't add it to the library."""
-    def add_book(self, book: Book):
-        for existing_books in self._books:
-            if existing_books.isbn == book.isbn:
-                return
-            
-        self._books.append(book)
-        self.save_to_json(self.json_path)  # To automatically saving new books to JSON.
+    def add_book(self, isbn: str) -> bool:
+        """Add a book by fetching details from OpenLibrary API"""
+        data = get_book_by_isbn(isbn)
+        if not data:
+            print("Kitap bilgisi alınamadı, eklenemedi.")
+            return False
 
+        title = data.get("title", "Unknown Title")
+        
+        authors = data.get("authors", [])
+        if authors and isinstance(authors[0], dict):
+            author = " & ".join(a.get("name", "Unknown") for a in authors)
+        elif authors and isinstance(authors[0], str):
+            author = " & ".join(authors)
+        else:
+            author = "Unknown Author"
+
+        # If the book is ald-ready in the library, don't add.
+        if any(book.isbn == isbn for book in self._books):
+            print("Bu ISBN kütüphanede zaten kayıtlı.")
+            return False
+
+        new_book = Book(title=title, author=author, isbn=isbn)
+        self._books.append(new_book)
+        self.save_to_json(self.json_path)
+        print(f"Kitap eklendi: {title} ({author})")
+        return True
+
+    def delete_book(self, isbn: str) -> bool:
+        """
+        ISBN numarasına göre kitabı siler.
+        Eğer kitap bulunursa True döner, bulunamazsa False döner.
+        """
+        for book in self._books:
+            if book.isbn == isbn:
+                self._books.remove(book)
+                self.save_to_json(self.json_path)  # Değişiklikleri kaydet
+                return True
+        return False
+    
     def list_books(self):
         return [book.display_info() for book in self._books]
 
@@ -103,7 +137,7 @@ class Library:
                 return book
         return None
     
-    """Save and Load books to/from JSON"""
+    """Save books to JSON"""
     def save_to_json(self, filename: str):
         with open(filename, "w", encoding="utf-8") as f:
             json.dump([book.to_dict() for book in self._books],
