@@ -21,5 +21,12 @@
         "author": "J.R.R. Tolkien",
         "isbn": "9780618640157",
         "is_borrowed": false
+    },
+    {
+        "type": "Book",
+        "title": "Brave new world",
+        "author": "Aldous Huxley",
+        "isbn": "9780582330993",
+        "is_borrowed": false
     }
 ]
