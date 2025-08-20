@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, ValidationError
 import json
 import os
-from api import get_book_by_isbn
+from openlibraryapi import get_book_by_isbn
 
 @dataclass
 class Book:
