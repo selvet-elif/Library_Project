@@ -5,45 +5,43 @@ class Book:
     def __init__(self, title: str, author: str, isbn: str):
         self.title = title
         self.author = author
-        self.isbn = str(isbn)  # ISBN: str
+        self.isbn = str(isbn)
     
     def __str__(self):
         return f"{self.title} by {self.author} (ISBN: {self.isbn})"
 
-async def fetch_book_from_api(isbn: str) -> Book:
-    """OpenLibrary API'sinden kitap bilgilerini çeker"""
+
+def fetch_book_from_api(isbn: str) -> Book:
+    """OpenLibrary API'sinden kitap bilgilerini çeker (synchronous)"""
     url = f"https://openlibrary.org/isbn/{isbn}.json"
     
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=10.0)
+        response = httpx.get(url, timeout=10.0)
+        
+        if response.status_code == 404:
+            raise ValueError("Kitap bulunamadı")
             
-            if response.status_code == 404:
-                raise ValueError("Kitap bulunamadı")
-                
-            response.raise_for_status()
-            data = response.json()
-            
-            title = data.get("title", "Bilinmeyen Başlık")
-            
-            # Get author info
-            authors = data.get("authors", [])
-            author_name = "Bilinmeyen Yazar"
-            
-            if authors:
-                # Get key for the first author
-                author_key = authors[0].get("key", "")
-                if author_key:
-                    try:
-                        author_url = f"https://openlibrary.org{author_key}.json"
-                        author_response = await client.get(author_url, timeout=5.0)
-                        author_data = author_response.json()
-                        author_name = author_data.get("name", "Bilinmeyen Yazar")
-                    except:
-                        author_name = "Bilinmeyen Yazar"
-            
-            return Book(title=title, author=author_name, isbn=isbn)
-            
+        response.raise_for_status()
+        data = response.json()
+        
+        title = data.get("title", "Bilinmeyen Başlık")
+        
+        authors = data.get("authors", [])
+        author_name = "Bilinmeyen Yazar"
+        
+        if authors:
+            author_key = authors[0].get("key", "")
+            if author_key:
+                try:
+                    author_url = f"https://openlibrary.org{author_key}.json"
+                    author_response = httpx.get(author_url, timeout=5.0)
+                    author_data = author_response.json()
+                    author_name = author_data.get("name", "Bilinmeyen Yazar")
+                except:
+                    author_name = "Bilinmeyen Yazar"
+        
+        return Book(title=title, author=author_name, isbn=isbn)
+    
     except httpx.RequestError:
         raise ValueError("İnternet bağlantısı yok veya API'ye ulaşılamıyor")
     except Exception as e:

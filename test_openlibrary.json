@@ -1,0 +1,16 @@
+[
+    {
+        "type": "Book",
+        "title": "Nineteen Eighty-Four",
+        "author": "George Orwell",
+        "isbn": "9780451524935",
+        "is_borrowed": false
+    },
+    {
+        "type": "Book",
+        "title": "The three voices of poetry",
+        "author": "Unknown Author",
+        "isbn": "0000000000",
+        "is_borrowed": false
+    }
+]
