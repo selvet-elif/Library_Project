@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, ValidationError
 import json
 import os
-from openlibraryapi import get_book_by_isbn
+from openlibrary import fetch_book_from_api
 
 @dataclass
 class Book:
@@ -90,7 +90,7 @@ class Library:
     def add_book(self, isbn: str) -> bool:
         
         """Add a book by fetching details from OpenLibrary API"""
-        data = get_book_by_isbn(isbn)
+        data = fetch_book_from_api(isbn)
         if not data:
             print("Kitap bilgisi alınamadı, eklenemedi.")
             return False

@@ -1,167 +1,98 @@
-# api.py
-# FastAPI app + helper to fetch books from OpenLibrary
-# Add the following lines to your requirements.txt:
-# fastapi
-# uvicorn
-# httpx
-# pytest
-# (pydantic is a dependency of fastapi but you can list it explicitly if you want)
-
-from typing import List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import httpx
-import re
+from typing import List
+import json
+from openlibrary import fetch_book_from_api
 
-app = FastAPI(title="Library API")
+app = FastAPI(
+    title="Library Management API",
+    description="A simple library management system API",
+    version="1.0.0"
+)
 
-
-def _clean_isbn(isbn: str) -> str:
-    # remove hyphens and whitespace
-    return re.sub(r"[^0-9Xx]", "", isbn)
-
-
-async def _fetch_openlibrary(isbn: str) -> Optional[dict]:
-    """Internal async fetch helper (not used directly by tests which mock httpx.get).
-    Returns dict with keys: title, authors (list of names) or None on failure.
-    """
-    clean = _clean_isbn(isbn)
-    url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{clean}&format=json&jscmd=data"
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
-    except Exception:
-        return None
-
-    key = f"ISBN:{clean}"
-    if key not in data:
-        return None
-
-    entry = data[key]
-    title = entry.get("title", "Unknown Title")
-    authors = entry.get("authors", [])
-    # Normalize authors: could be list of dicts with 'name' or list of strings
-    names: List[str] = []
-    for a in authors:
-        if isinstance(a, dict):
-            names.append(a.get("name", "Unknown"))
-        elif isinstance(a, str):
-            names.append(a)
-    return {"title": title, "authors": names}
-
-
-# The tests expect a synchronous get_book_by_isbn that uses httpx.get and returns
-# a dict like {"title": ..., "authors": [...] } or None on error. We'll provide
-# that function for compatibility with the existing test suite and library module.
-
-def get_book_by_isbn(isbn: str) -> Optional[dict]:
-    """Synchronous helper used by Library.add_book and by tests.
-    Uses httpx.get (sync) so tests can mock httpx.get easily.
-    """
-    clean = _clean_isbn(isbn)
-    url = f"https://openlibrary.org/api/books?bibkeys=ISBN:{clean}&format=json&jscmd=data"
-    try:
-        resp = httpx.get(url, timeout=10)
-        resp.raise_for_status()
-        data = resp.json()
-    except Exception:
-        return None
-
-    key = f"ISBN:{clean}"
-    if key not in data:
-        return None
-
-    entry = data[key]
-    title = entry.get("title", "Unknown Title")
-    authors = entry.get("authors", [])
-    names: List[str] = []
-    for a in authors:
-        if isinstance(a, dict):
-            names.append(a.get("name", "Unknown"))
-        elif isinstance(a, str):
-            names.append(a)
-    return {"title": title, "authors": names}
-
-
-# Pydantic models for request/response
-class ISBNRequest(BaseModel):
+# Pydantic modelleri
+class BookCreate(BaseModel):
     isbn: str
-
 
 class BookResponse(BaseModel):
     title: str
     author: str
     isbn: str
-    is_borrowed: bool = False
 
+# JSON veritabanı yönetimi
+def load_books():
+    try:
+        with open("library.json", "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
 
-# Lazy-loaded Library singleton to avoid circular imports (library.py imports
-# get_book_by_isbn at module import time). We import Library only when needed.
-_library_instance = None
+def save_books(books):
+    with open("library.json", "w") as f:
+        json.dump(books, f, indent=2)
 
-
-def get_library():
-    global _library_instance
-    if _library_instance is None:
-        # import here to avoid circular import at module-import time
-        from library import Library
-        _library_instance = Library(name="City Library")
-    return _library_instance
-
-
-@app.get("/", tags=["root"])  # simple root for quick check
-def read_root():
-    return {"message": "Library API is running. Visit /docs for interactive API docs."}
-
+@app.get("/")
+async def root():
+    return {"message": "Library Management API'ye hoş geldiniz!"}
 
 @app.get("/books", response_model=List[BookResponse])
-def list_books():
-    lib = get_library()
-    books = []
-    for b in lib._books:  # using internal list for serialization
-        books.append(BookResponse(title=b.title, author=b.author, isbn=b.isbn, is_borrowed=b.is_borrowed))
-    return books
-
+async def get_books():
+    """Tüm kitapları listeler"""
+    return load_books()
 
 @app.post("/books", response_model=BookResponse)
-def add_book(payload: ISBNRequest):
-    lib = get_library()
-    isbn = payload.isbn
-    added = lib.add_book(isbn)
-    if not added:
-        # Try to give a helpful error if the book wasn't found or already exists
-        # Check if book exists
-        if any(book.isbn == isbn for book in lib._books):
-            raise HTTPException(status_code=400, detail="Book with this ISBN already exists in library.")
-        else:
-            raise HTTPException(status_code=400, detail="Book could not be fetched from OpenLibrary or an error occurred.")
-    # Find the added book and return it
-    for b in lib._books:
-        if b.isbn == isbn:
-            return BookResponse(title=b.title, author=b.author, isbn=b.isbn, is_borrowed=b.is_borrowed)
-    # Fallback (shouldn't happen)
-    raise HTTPException(status_code=500, detail="Book added but could not be retrieved.")
+async def add_book(book_create: BookCreate):
+    """ISBN ile yeni kitap ekler"""
+    try:
+        # API'den kitap bilgilerini al
+        book_data = await fetch_book_from_api(book_create.isbn)
+        
+        # Mevcut kitapları yükle
+        books = load_books()
+        
+        # Aynı ISBN kontrolü
+        if any(book["isbn"] == book_create.isbn for book in books):
+            raise HTTPException(status_code=400, detail="Bu ISBN zaten mevcut")
+        
+        # Yeni kitabı ekle
+        new_book = {
+            "title": book_data.title,
+            "author": book_data.author,
+            "isbn": book_data.isbn
+        }
+        books.append(new_book)
+        
+        # Kitapları kaydet
+        save_books(books)
+        
+        return new_book
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
+@app.get("/books/{isbn}", response_model=BookResponse)
+async def get_book(isbn: str):
+    """ISBN ile belirli bir kitabı getirir"""
+    books = load_books()
+    for book in books:
+        if book["isbn"] == isbn:
+            return book
+    raise HTTPException(status_code=404, detail="Kitap bulunamadı")
 
 @app.delete("/books/{isbn}")
-def delete_book(isbn: str):
-    lib = get_library()
-    success = lib.delete_book(isbn)
-    if not success:
-        raise HTTPException(status_code=404, detail="Book not found")
-    return {"detail": "Book deleted"}
+async def delete_book(isbn: str):
+    """ISBN ile kitabı siler"""
+    books = load_books()
+    new_books = [book for book in books if book["isbn"] != isbn]
+    
+    if len(new_books) == len(books):
+        raise HTTPException(status_code=404, detail="Kitap bulunamadı")
+    
+    save_books(new_books)
+    return {"message": "Kitap silindi"}
 
-
-if __name__ == "__main__":
-    import uvicorn
-
-    # Run the application
-    uvicorn.run(
-        "api:app",
-        host="127.0.0.1",
-        port=8000,
-        reload=True,
-        log_level="info"
-    )
+@app.get("/health")
+async def health_check():
+    """API sağlık durumu"""
+    books = load_books()
+    return {"status": "healthy", "books_count": len(books)}
