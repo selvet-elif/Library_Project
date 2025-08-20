@@ -1,6 +1,6 @@
 import pytest
 import httpx
-from api import get_book_by_isbn 
+from openlibraryapi import get_book_by_isbn 
 
 def test_get_book_by_isbn_success(mocker):
     

@@ -80,7 +80,7 @@ def test_library_find_book(temp_library, sample_book):
     assert not_found is None
 
 
-"""def test_library_save_and_load(temp_library, sample_ebook):
+def test_library_save_and_load(temp_library, sample_ebook):
     temp_library.add_book(sample_ebook)
     temp_library.save_to_json(temp_library.json_path)
 
@@ -89,7 +89,7 @@ def test_library_find_book(temp_library, sample_book):
     assert new_lib.total_books == 1
     loaded_book = new_lib.find_book(isbn=sample_ebook.isbn)
     assert isinstance(loaded_book, EBook)
-    assert loaded_book.file_format == "PDF"""
+    assert loaded_book.file_format == "PDF"
 
 
 def test_member_dataclass(sample_book):
