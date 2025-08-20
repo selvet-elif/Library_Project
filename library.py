@@ -86,16 +86,17 @@ class Library:
         self.json_path = json_path
         self.load_from_json(self.json_path)
     
-    """Adds a new book. If the book existed it doesn't add it to the library."""
+    
     def add_book(self, isbn: str) -> bool:
+        
         """Add a book by fetching details from OpenLibrary API"""
         data = get_book_by_isbn(isbn)
         if not data:
             print("Kitap bilgisi alınamadı, eklenemedi.")
             return False
-
+        # To get title of the book
         title = data.get("title", "Unknown Title")
-        
+        # To get Author's names
         authors = data.get("authors", [])
         if authors and isinstance(authors[0], dict):
             author = " & ".join(a.get("name", "Unknown") for a in authors)
@@ -104,7 +105,7 @@ class Library:
         else:
             author = "Unknown Author"
 
-        # If the book is ald-ready in the library, don't add.
+        # If the book is already in the library, doen't add.
         if any(book.isbn == isbn for book in self._books):
             print("Bu ISBN kütüphanede zaten kayıtlı.")
             return False
@@ -116,14 +117,11 @@ class Library:
         return True
 
     def delete_book(self, isbn: str) -> bool:
-        """
-        ISBN numarasına göre kitabı siler.
-        Eğer kitap bulunursa True döner, bulunamazsa False döner.
-        """
+        """Deleting books by ISBN number"""
         for book in self._books:
             if book.isbn == isbn:
                 self._books.remove(book)
-                self.save_to_json(self.json_path)  # Değişiklikleri kaydet
+                self.save_to_json(self.json_path)  # Save changes
                 return True
         return False
     
