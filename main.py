@@ -14,13 +14,11 @@ def main():
         choice = input("Seçiminizi yapın: ")
 
         if choice == "1":
-            title = input("Kitap adı: ")
-            author = input("Yazar: ")
             isbn = input("ISBN: ")
-            library.add_book(title, author, isbn)
+            library.add_book(isbn)
         elif choice == "2":
             isbn = input("Silmek istediğiniz kitabın ISBN'i: ")
-            library.remove_book(isbn)
+            library.delete_book(isbn)
         elif choice == "3":
             print("Kitap listesi:")
             for info in library.list_books():
