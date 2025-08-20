@@ -12,7 +12,7 @@ class Book:
 
 
 def fetch_book_from_api(isbn: str) -> Book:
-    """OpenLibrary API'sinden kitap bilgilerini çeker (synchronous)"""
+    """Fetch book info from OpenLibraryAPI"""
     url = f"https://openlibrary.org/isbn/{isbn}.json"
     
     try:
