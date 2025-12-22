@@ -1,7 +1,11 @@
+import asyncio
+
 from library import Library
+from openlibrary import fetch_book_from_api
+
 
 def main():
-    library = Library(name= "City Library")
+    library = Library(name="City Library")
 
     while True:
         print("\n--- Kitap Yönetim Sistemi ---")
@@ -15,10 +19,15 @@ def main():
 
         if choice == "1":
             isbn = input("ISBN: ")
-            library.add_book(isbn)
+            try:
+                book = asyncio.run(fetch_book_from_api(isbn))
+                library.add_book(book)
+            except Exception as exc:
+                print(f"Kitap eklenemedi: {exc}")
         elif choice == "2":
             isbn = input("Silmek istediğiniz kitabın ISBN'i: ")
-            library.delete_book(isbn)
+            if not library.delete_book(isbn):
+                print("Kitap bulunamadı.")
         elif choice == "3":
             print("Kitap listesi:")
             for info in library.list_books():
@@ -27,7 +36,7 @@ def main():
             title = input("Aranacak kitabın adı: ")
             result = library.find_book(title=title)
             if result:
-                print(result)
+                print(result.display_info())
             else:
                 print("Kitap bulunamadı.")
         elif choice == "5":
@@ -35,6 +44,7 @@ def main():
             break
         else:
             print("Geçersiz seçim, tekrar deneyin.")
+
 
 if __name__ == "__main__":
     main()
