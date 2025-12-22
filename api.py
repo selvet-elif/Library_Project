@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
-import json
 from openlibrary import fetch_book_from_api
+from library import Library  # Import Library class
 
 app = FastAPI(
     title="Library Management API",
@@ -19,17 +19,8 @@ class BookResponse(BaseModel):
     author: str
     isbn: str
 
-# JSON veritabanı yönetimi
-def load_books():
-    try:
-        with open("library.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return []
-
-def save_books(books):
-    with open("library.json", "w") as f:
-        json.dump(books, f, indent=2)
+# Library instance
+library = Library("library.json")
 
 @app.get("/")
 async def root():
@@ -38,7 +29,7 @@ async def root():
 @app.get("/books", response_model=List[BookResponse])
 async def get_books():
     """Tüm kitapları listeler"""
-    return load_books()
+    return library.get_books()
 
 @app.post("/books", response_model=BookResponse)
 async def add_book(book_create: BookCreate):
@@ -47,11 +38,8 @@ async def add_book(book_create: BookCreate):
         # API'den kitap bilgilerini al
         book_data = await fetch_book_from_api(book_create.isbn)
         
-        # Mevcut kitapları yükle
-        books = load_books()
-        
         # Aynı ISBN kontrolü
-        if any(book["isbn"] == book_create.isbn for book in books):
+        if any(book["isbn"] == book_create.isbn for book in library.get_books()):
             raise HTTPException(status_code=400, detail="Bu ISBN zaten mevcut")
         
         # Yeni kitabı ekle
@@ -60,10 +48,7 @@ async def add_book(book_create: BookCreate):
             "author": book_data.author,
             "isbn": book_data.isbn
         }
-        books.append(new_book)
-        
-        # Kitapları kaydet
-        save_books(books)
+        library.add_book(new_book)
         
         return new_book
         
@@ -73,28 +58,23 @@ async def add_book(book_create: BookCreate):
 @app.get("/books/{isbn}", response_model=BookResponse)
 async def get_book(isbn: str):
     """ISBN ile belirli bir kitabı getirir"""
-    books = load_books()
-    for book in books:
-        if book["isbn"] == isbn:
-            return book
+    book = library.get_book_by_isbn(isbn)
+    if book:
+        return book
     raise HTTPException(status_code=404, detail="Kitap bulunamadı")
 
 @app.delete("/books/{isbn}")
 async def delete_book(isbn: str):
     """ISBN ile kitabı siler"""
-    books = load_books()
-    new_books = [book for book in books if book["isbn"] != isbn]
-    
-    if len(new_books) == len(books):
+    result = library.delete_book(isbn)
+    if not result:
         raise HTTPException(status_code=404, detail="Kitap bulunamadı")
-    
-    save_books(new_books)
     return {"message": "Kitap silindi"}
 
 @app.get("/health")
 async def health_check():
     """API sağlık durumu"""
-    books = load_books()
+    books = library.get_books()
     return {"status": "healthy", "books_count": len(books)}
 
 if __name__ == "__main__":
